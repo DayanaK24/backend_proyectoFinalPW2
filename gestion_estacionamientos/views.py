@@ -2,8 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate
-from .models import AdminEstacionamiento, Estacionamiento, Espacio, TipoVehiculo, RegistroVehiculo, Incidente
-from .serializers import AdminEstacionamientoSerializer, EstacionamientoSerializer, TipoVehiculoSerializer, RegistroVehiculoSerializer, IncidenteSerializer
+from .models import AdminEstacionamiento, Estacionamiento, Espacio, TipoVehiculo
+from .serializers import AdminEstacionamientoSerializer, EstacionamientoSerializer, TipoVehiculoSerializer
 
 class RegistroAdminEstacionamientoView(APIView):
     def post(self, request):
@@ -25,284 +25,206 @@ class LoginAdminEstacionamientoView(APIView):
             return Response({"codigo_unico": admin.codigo_unico}, status=status.HTTP_200_OK)
         return Response({"error": "Credenciales inválidas"}, status=status.HTTP_401_UNAUTHORIZED)
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Estacionamiento, Espacio, TipoVehiculo
+from .serializers import EstacionamientoSerializer, EspacioSerializer, TipoVehiculoSerializer
 
-class EstacionamientoView(APIView):
+
+class CantidadEspaciosView(APIView):
+    def get(self, request):
+        estacionamiento = Estacionamiento.objects.first()
+        if estacionamiento:
+            return Response({"espacios_totales": estacionamiento.espacios_totales})
+        return Response({"error": "Estacionamiento no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
     def post(self, request):
-        usuario = request.data.get('usuario')
-        codigo_unico = request.data.get('codigo_unico')
-        nombre = request.data.get('nombre')
-        ubicacion = request.data.get('ubicacion')
-        espacios_totales = request.data.get('espacios_totales')
+        estacionamiento = Estacionamiento.objects.first()
+        if estacionamiento:
+            nueva_cantidad = request.data.get("espacios_totales")
+            if nueva_cantidad is not None:
+                nueva_cantidad = int(nueva_cantidad)
+                espacios_actuales = Espacio.objects.count()
 
-        try:
-            admin = AdminEstacionamiento.objects.get(usuario=usuario, codigo_unico=codigo_unico)
-        except AdminEstacionamiento.DoesNotExist:
-            return Response({"error": "Usuario o código único inválido."}, status=status.HTTP_404_NOT_FOUND)
+                if nueva_cantidad > espacios_actuales:
+                    Espacio.objects.bulk_create([
+                        Espacio(disponible=True) for _ in range(nueva_cantidad - espacios_actuales)
+                    ])
+                elif nueva_cantidad < espacios_actuales:
+                    
+                    espacios_a_eliminar = Espacio.objects.order_by('-id')[:espacios_actuales - nueva_cantidad]
+                    for espacio in espacios_a_eliminar:
+                        espacio.delete()
 
-        estacionamiento = Estacionamiento(
-            nombre=nombre,
-            ubicacion=ubicacion,
-            espacios_totales=espacios_totales,
-            administrador=admin
-        )
-        estacionamiento.save()
-        estacionamiento.crear_espacios() 
-
-        return Response(EstacionamientoSerializer(estacionamiento).data, status=status.HTTP_201_CREATED)
-
-    def put(self, request, pk):
-        usuario = request.data.get('usuario')
-        codigo_unico = request.data.get('codigo_unico')
-        try:
-            admin = AdminEstacionamiento.objects.get(usuario=usuario, codigo_unico=codigo_unico)
-            estacionamiento = Estacionamiento.objects.get(pk=pk, administrador=admin)
-        except (AdminEstacionamiento.DoesNotExist, Estacionamiento.DoesNotExist):
-            return Response({"error": "Estacionamiento o administrador no encontrado."}, status=status.HTTP_404_NOT_FOUND)
-
-        estacionamiento.nombre = request.data.get('nombre', estacionamiento.nombre)
-        estacionamiento.ubicacion = request.data.get('ubicacion', estacionamiento.ubicacion)
-        estacionamiento.espacios_totales = request.data.get('espacios_totales', estacionamiento.espacios_totales)
-        estacionamiento.save()
-
-        return Response(EstacionamientoSerializer(estacionamiento).data, status=status.HTTP_200_OK)
-
-    def delete(self, request, pk):
-        usuario = request.data.get('usuario')
-        codigo_unico = request.data.get('codigo_unico')
-        accion = request.data.get('accion') 
-
-        if accion != "eliminar":
-            return Response({"error": "Acción no permitida. Debes incluir 'eliminar' en la solicitud."}, 
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            admin = AdminEstacionamiento.objects.get(usuario=usuario, codigo_unico=codigo_unico)
-            
-            estacionamiento = Estacionamiento.objects.get(pk=pk, administrador=admin)
-        except AdminEstacionamiento.DoesNotExist:
-            return Response({"error": "Administrador no encontrado."}, status=status.HTTP_404_NOT_FOUND)
-        except Estacionamiento.DoesNotExist:
-            return Response({"error": "Estacionamiento no encontrado o no pertenece a este administrador."}, 
-                            status=status.HTTP_404_NOT_FOUND)
-
-        
-        estacionamiento.delete()
-        return Response({"message": "Estacionamiento eliminado con éxito."}, status=status.HTTP_200_OK)
     
-class ListaEstacionamientosView(APIView):
+                estacionamiento.espacios_totales = nueva_cantidad
+                estacionamiento.save()
+                return Response({
+                    "message": "Cantidad de espacios actualizada correctamente",
+                    "espacios_totales": nueva_cantidad
+                })
+
+            return Response({"error": "Espacios totales no proporcionados"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Estacionamiento no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+
+class ListaEspaciosView(APIView):
+    def get(self, request):
+        espacios = Espacio.objects.all()
+        return Response(EspacioSerializer(espacios, many=True).data)
+
+
+class EditarEspacioView(APIView):
     def post(self, request):
-        usuario = request.data.get('usuario')
-        codigo_unico = request.data.get('codigo_unico')
-
+        espacio_id = request.data.get("id")
+        disponible = request.data.get("disponible")
+        if espacio_id is None or disponible is None:
+            return Response({"error": "Datos incompletos"}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            
-            admin = AdminEstacionamiento.objects.get(usuario=usuario, codigo_unico=codigo_unico)
-        except AdminEstacionamiento.DoesNotExist:
-            return Response({"error": "Administrador no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+            espacio = Espacio.objects.get(id=espacio_id)
+            espacio.disponible = disponible
+            espacio.save()
+            return Response(EspacioSerializer(espacio).data)
+        except Espacio.DoesNotExist:
+            return Response({"error": "Espacio no encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
-       
-        estacionamientos = Estacionamiento.objects.filter(administrador=admin)
-        serializer = EstacionamientoSerializer(estacionamientos, many=True)
 
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    
+class ListaTipoVehiculoView(APIView):
+    def get(self, request):
+        tipos = TipoVehiculo.objects.all()
+        return Response(TipoVehiculoSerializer(tipos, many=True).data)
 
-class TipoVehiculoView(APIView):
+
+class AgregarTipoVehiculoView(APIView):
     def post(self, request):
-        usuario = request.data.get('usuario')
-        codigo_unico = request.data.get('codigo_unico')
-        estacionamiento_id = request.data.get('estacionamiento_id')
-        tipo = request.data.get('tipo')
-        tarifa = request.data.get('tarifa')
+        serializer = TipoVehiculoSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+class EditarTipoVehiculoView(APIView):
+    def post(self, request):
+        tipo_id = request.data.get("id")
+        if tipo_id is None:
+            return Response({"error": "ID del tipo de vehículo no proporcionado"}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            admin = AdminEstacionamiento.objects.get(usuario=usuario, codigo_unico=codigo_unico)
-            estacionamiento = Estacionamiento.objects.get(id=estacionamiento_id, administrador=admin)
-        except AdminEstacionamiento.DoesNotExist:
-            return Response({"error": "Administrador no encontrado."}, status=status.HTTP_404_NOT_FOUND)
-        except Estacionamiento.DoesNotExist:
-            return Response({"error": "Estacionamiento no encontrado o no pertenece a este administrador."}, 
-                            status=status.HTTP_404_NOT_FOUND)
+            tipo_vehiculo = TipoVehiculo.objects.get(id=tipo_id)
+            serializer = TipoVehiculoSerializer(tipo_vehiculo, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except TipoVehiculo.DoesNotExist:
+            return Response({"error": "Tipo de Vehículo no encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
-        tipo_vehiculo = TipoVehiculo.objects.create(
-            tipo=tipo,
-            tarifa=tarifa,
-            estacionamiento=estacionamiento
-        )
 
-        return Response(TipoVehiculoSerializer(tipo_vehiculo).data, status=status.HTTP_201_CREATED)
-
-    def put(self, request, pk):
-        usuario = request.data.get('usuario')
-        codigo_unico = request.data.get('codigo_unico')
-
+class EliminarTipoVehiculoView(APIView):
+    def post(self, request):
+        tipo_id = request.data.get("id")
+        if tipo_id is None:
+            return Response({"error": "ID del tipo de vehículo no proporcionado"}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            admin = AdminEstacionamiento.objects.get(usuario=usuario, codigo_unico=codigo_unico)
-            tipo_vehiculo = TipoVehiculo.objects.get(pk=pk, estacionamiento__administrador=admin)
-        except (AdminEstacionamiento.DoesNotExist, TipoVehiculo.DoesNotExist):
-            return Response({"error": "Tipo de vehículo no encontrado o no pertenece a este administrador."}, 
-                            status=status.HTTP_404_NOT_FOUND)
+            tipo_vehiculo = TipoVehiculo.objects.get(id=tipo_id)
+            tipo_vehiculo.delete()
+            return Response({"message": "Tipo de Vehículo eliminado"}, status=status.HTTP_204_NO_CONTENT)
+        except TipoVehiculo.DoesNotExist:
+            return Response({"error": "Tipo de Vehículo no encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
-        tipo_vehiculo.tipo = request.data.get('tipo', tipo_vehiculo.tipo)
-        tipo_vehiculo.tarifa = request.data.get('tarifa', tipo_vehiculo.tarifa)
-        tipo_vehiculo.save()
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import RegistroVehiculo, Espacio, TipoVehiculo
+from .serializers import RegistroVehiculoSerializer
 
-        return Response(TipoVehiculoSerializer(tipo_vehiculo).data, status=status.HTTP_200_OK)
+class ListarVehiculosView(APIView):
+    def get(self, request):
+        vehiculos = RegistroVehiculo.objects.all()
+        serializer = RegistroVehiculoSerializer(vehiculos, many=True)
+        return Response(serializer.data)
 
-    def delete(self, request, pk):
-        usuario = request.data.get('usuario')
-        codigo_unico = request.data.get('codigo_unico')
+class RegistrarVehiculoView(APIView):
+    def post(self, request):
+        serializer = RegistroVehiculoSerializer(data=request.data)
+        if serializer.is_valid():
+            espacio = serializer.validated_data['espacio']
+            if not espacio.disponible:
+                return Response({"error": "El espacio no está disponible."}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            admin = AdminEstacionamiento.objects.get(usuario=usuario, codigo_unico=codigo_unico)
-            tipo_vehiculo = TipoVehiculo.objects.get(pk=pk, estacionamiento__administrador=admin)
-        except (AdminEstacionamiento.DoesNotExist, TipoVehiculo.DoesNotExist):
-            return Response({"error": "Tipo de vehículo no encontrado o no pertenece a este administrador."}, 
-                            status=status.HTTP_404_NOT_FOUND)
+            espacio.disponible = False
+            espacio.save()
 
-        tipo_vehiculo.delete()
-        return Response({"message": "Tipo de vehículo eliminado con éxito."}, status=status.HTTP_200_OK)
+            registro = serializer.save()
+            return Response(RegistroVehiculoSerializer(registro).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import RegistroVehiculo, Espacio
+from .serializers import RegistroVehiculoSerializer
 from datetime import datetime
 
-class RegistroVehiculoView(APIView):
+from django.utils import timezone
+
+class SalidaVehiculoView(APIView):
     def post(self, request):
-        usuario = request.data.get('usuario')
-        codigo_unico = request.data.get('codigo_unico')
-        estacionamiento_id = request.data.get('estacionamiento_id')
-        placa = request.data.get('placa')
-        tipo_vehiculo_id = request.data.get('tipo_vehiculo_id')
-        espacio_id = request.data.get('espacio_id')
+        registro_id = request.data.get("registro_id")
 
         try:
-            admin = AdminEstacionamiento.objects.get(usuario=usuario, codigo_unico=codigo_unico)
-            estacionamiento = Estacionamiento.objects.get(id=estacionamiento_id, administrador=admin)
-            espacio = Espacio.objects.get(id=espacio_id, estacionamiento=estacionamiento, disponible=True)
-            tipo_vehiculo = TipoVehiculo.objects.get(id=tipo_vehiculo_id, estacionamiento=estacionamiento)
-        except AdminEstacionamiento.DoesNotExist:
-            return Response({"error": "Administrador no encontrado."}, status=status.HTTP_404_NOT_FOUND)
-        except Estacionamiento.DoesNotExist:
-            return Response({"error": "Estacionamiento no encontrado o no pertenece a este administrador."}, 
-                            status=status.HTTP_404_NOT_FOUND)
-        except Espacio.DoesNotExist:
-            return Response({"error": "Espacio no disponible o no pertenece a este estacionamiento."}, 
-                            status=status.HTTP_404_NOT_FOUND)
-        except TipoVehiculo.DoesNotExist:
-            return Response({"error": "Tipo de vehículo no encontrado o no pertenece a este estacionamiento."}, 
-                            status=status.HTTP_404_NOT_FOUND)
+            registro = RegistroVehiculo.objects.get(id=registro_id)
+        except RegistroVehiculo.DoesNotExist:
+            return Response({"error": "Registro no encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
-        vehiculo = RegistroVehiculo.objects.create(
-            placa=placa,
-            tipo_vehiculo=tipo_vehiculo,
-            hora_entrada=datetime.now(),
-            espacio=espacio
-        )
-        espacio.disponible = False
+        if registro.hora_salida is not None:
+            return Response({"error": "El vehículo ya ha marcado su salida"}, status=status.HTTP_400_BAD_REQUEST)
+
+        registro.hora_salida = timezone.now()
+        registro.calcular_precio()
+
+        espacio = registro.espacio
+        espacio.disponible = True
         espacio.save()
 
-        return Response(RegistroVehiculoSerializer(vehiculo).data, status=status.HTTP_201_CREATED)
+        return Response(RegistroVehiculoSerializer(registro).data, status=status.HTTP_200_OK)
 
-    def put(self, request, pk):
-        usuario = request.data.get('usuario')
-        codigo_unico = request.data.get('codigo_unico')
 
+class VisualizarVehiculoView(APIView):
+    def get(self, request, pk):
         try:
-            admin = AdminEstacionamiento.objects.get(usuario=usuario, codigo_unico=codigo_unico)
-            vehiculo = RegistroVehiculo.objects.get(pk=pk, espacio__estacionamiento__administrador=admin)
-        except (AdminEstacionamiento.DoesNotExist, RegistroVehiculo.DoesNotExist):
-            return Response({"error": "Registro de vehículo no encontrado o no pertenece a este administrador."}, 
-                            status=status.HTTP_404_NOT_FOUND)
+            vehiculo = RegistroVehiculo.objects.get(pk=pk)
+            serializer = RegistroVehiculoSerializer(vehiculo)
+            return Response(serializer.data)
+        except RegistroVehiculo.DoesNotExist:
+            return Response({"error": "Vehículo no encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
-        vehiculo.placa = request.data.get('placa', vehiculo.placa)
-        vehiculo.tipo_vehiculo_id = request.data.get('tipo_vehiculo_id', vehiculo.tipo_vehiculo.id)
-        vehiculo.save()
 
-        return Response(RegistroVehiculoSerializer(vehiculo).data, status=status.HTTP_200_OK)
 
-    def patch(self, request, pk):
-        usuario = request.data.get('usuario')
-        codigo_unico = request.data.get('codigo_unico')
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Incidente, Espacio
+from .serializers import IncidenteSerializer
 
-        try:
-            admin = AdminEstacionamiento.objects.get(usuario=usuario, codigo_unico=codigo_unico)
-            vehiculo = RegistroVehiculo.objects.get(pk=pk, espacio__estacionamiento__administrador=admin)
-        except (AdminEstacionamiento.DoesNotExist, RegistroVehiculo.DoesNotExist):
-            return Response({"error": "Registro de vehículo no encontrado o no pertenece a este administrador."}, 
-                            status=status.HTTP_404_NOT_FOUND)
+class ListarIncidentesView(APIView):
+    def get(self, request):
+        incidentes = Incidente.objects.all()
+        serializer = IncidenteSerializer(incidentes, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-        vehiculo.hora_salida = datetime.now()
-        vehiculo.calcular_precio()
-        vehiculo.espacio.disponible = True
-        vehiculo.espacio.save()
-
-        return Response(RegistroVehiculoSerializer(vehiculo).data, status=status.HTTP_200_OK)
-
-class IncidenteView(APIView):
+class AgregarIncidenteView(APIView):
     def post(self, request):
-        usuario = request.data.get('usuario')
-        codigo_unico = request.data.get('codigo_unico')
-        estacionamiento_id = request.data.get('estacionamiento_id')
-        descripcion = request.data.get('descripcion')
-
-        try:
-            admin = AdminEstacionamiento.objects.get(usuario=usuario, codigo_unico=codigo_unico)
-            estacionamiento = Estacionamiento.objects.get(id=estacionamiento_id, administrador=admin)
-        except AdminEstacionamiento.DoesNotExist:
-            return Response({"error": "Administrador no encontrado."}, status=status.HTTP_404_NOT_FOUND)
-        except Estacionamiento.DoesNotExist:
-            return Response({"error": "Estacionamiento no encontrado o no pertenece a este administrador."}, 
-                            status=status.HTTP_404_NOT_FOUND)
-
-        incidente = Incidente.objects.create(
-            descripcion=descripcion,
-            estacionamiento=estacionamiento
-        )
-
-        return Response(IncidenteSerializer(incidente).data, status=status.HTTP_201_CREATED)
-
-    def get(self, request, estacionamiento_id):
-        usuario = request.query_params.get('usuario')
-        codigo_unico = request.query_params.get('codigo_unico')
-
-        try:
-            admin = AdminEstacionamiento.objects.get(usuario=usuario, codigo_unico=codigo_unico)
-            estacionamiento = Estacionamiento.objects.get(id=estacionamiento_id, administrador=admin)
-        except AdminEstacionamiento.DoesNotExist:
-            return Response({"error": "Administrador no encontrado."}, status=status.HTTP_404_NOT_FOUND)
-        except Estacionamiento.DoesNotExist:
-            return Response({"error": "Estacionamiento no encontrado o no pertenece a este administrador."}, 
-                            status=status.HTTP_404_NOT_FOUND)
-
-        incidentes = Incidente.objects.filter(estacionamiento=estacionamiento)
-        return Response(IncidenteSerializer(incidentes, many=True).data, status=status.HTTP_200_OK)
-
-    def put(self, request, pk):
-        usuario = request.data.get('usuario')
-        codigo_unico = request.data.get('codigo_unico')
-        descripcion = request.data.get('descripcion')
-
-        try:
-            admin = AdminEstacionamiento.objects.get(usuario=usuario, codigo_unico=codigo_unico)
-            incidente = Incidente.objects.get(pk=pk, estacionamiento__administrador=admin)
-        except (AdminEstacionamiento.DoesNotExist, Incidente.DoesNotExist):
-            return Response({"error": "Incidente no encontrado o no pertenece a este administrador."}, 
-                            status=status.HTTP_404_NOT_FOUND)
-
-        incidente.descripcion = descripcion
-        incidente.save()
-
-        return Response(IncidenteSerializer(incidente).data, status=status.HTTP_200_OK)
-
-    def delete(self, request, pk):
-        usuario = request.data.get('usuario')
-        codigo_unico = request.data.get('codigo_unico')
-
-        try:
-            admin = AdminEstacionamiento.objects.get(usuario=usuario, codigo_unico=codigo_unico)
-            incidente = Incidente.objects.get(pk=pk, estacionamiento__administrador=admin)
-        except (AdminEstacionamiento.DoesNotExist, Incidente.DoesNotExist):
-            return Response({"error": "Incidente no encontrado o no pertenece a este administrador."}, 
-                            status=status.HTTP_404_NOT_FOUND)
-
-        incidente.delete()
-        return Response({"message": "Incidente eliminado exitosamente."}, status=status.HTTP_200_OK)
+        serializer = IncidenteSerializer(data=request.data)
+        if serializer.is_valid():
+            espacio_id = serializer.validated_data.get('espacio').id
+            try:
+                espacio = Espacio.objects.get(id=espacio_id)
+                if not espacio.disponible:
+                    return Response({"error": "No se puede registrar un incidente en un espacio ocupado."}, status=status.HTTP_400_BAD_REQUEST)
+                incidente = serializer.save()
+                return Response(IncidenteSerializer(incidente).data, status=status.HTTP_201_CREATED)
+            except Espacio.DoesNotExist:
+                return Response({"error": "Espacio no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

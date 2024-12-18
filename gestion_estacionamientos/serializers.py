@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import AdminEstacionamiento, Estacionamiento, Espacio
+from .models import AdminEstacionamiento, Estacionamiento, Espacio, TipoVehiculo, RegistroVehiculo, Incidente
 
 class AdminEstacionamientoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -17,3 +17,21 @@ class EstacionamientoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Estacionamiento
         fields = ['id', 'nombre', 'ubicacion', 'espacios_totales', 'espacios', 'administrador']
+
+
+class TipoVehiculoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TipoVehiculo
+        fields = '__all__'
+
+
+class RegistroVehiculoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RegistroVehiculo
+        fields = '__all__'
+        
+
+class IncidenteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Incidente
+        fields = '__all__'

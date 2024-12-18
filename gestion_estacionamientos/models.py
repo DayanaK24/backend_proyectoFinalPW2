@@ -7,7 +7,6 @@ def generar_codigo():
     caracteres = string.ascii_letters + string.digits
     return ''.join(random.choice(caracteres) for _ in range(8))
 
-
 # Modelo Administrador de Estacionamiento
 class AdminEstacionamiento(models.Model):
     nombre_completo = models.CharField(max_length=100)
@@ -78,6 +77,6 @@ class Incidente(models.Model):
     descripcion = models.TextField()
     fecha_hora = models.DateTimeField(auto_now_add=True)
     estacionamiento = models.ForeignKey(Estacionamiento, on_delete=models.CASCADE)
-
+    
     def __str__(self):
         return f"Incidente en {self.estacionamiento.nombre} - {self.fecha_hora}"

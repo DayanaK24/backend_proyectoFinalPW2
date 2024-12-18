@@ -1,6 +1,8 @@
 from django.db import models
 import random
 import string
+from django.utils import timezone
+from decimal import Decimal
 
 def generar_codigo():
     caracteres = string.ascii_letters + string.digits
@@ -30,7 +32,8 @@ class Espacio(models.Model):
     disponible = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"Espacio {self.id} ({'Disponible' if self.disponible else 'Ocupado'})"
+        estado = "Disponible" if self.disponible else "Ocupado"
+        return f"Espacio {self.id} ({estado})"
 
 class TipoVehiculo(models.Model):
     tipo = models.CharField(max_length=50)
@@ -39,8 +42,7 @@ class TipoVehiculo(models.Model):
     def __str__(self):
         return f"{self.tipo} - {self.tarifa_por_hora} soles por hora"
 
-from django.utils import timezone
-from decimal import Decimal
+
 
 class RegistroVehiculo(models.Model):
     placa = models.CharField(max_length=20)

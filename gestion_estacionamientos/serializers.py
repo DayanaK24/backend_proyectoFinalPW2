@@ -25,6 +25,8 @@ class TipoVehiculoSerializer(serializers.ModelSerializer):
         model = TipoVehiculo
         fields = ['id', 'tipo', 'tarifa_por_hora']
 
+from django.utils import timezone
+
 class RegistroVehiculoSerializer(serializers.ModelSerializer):
     tipo_vehiculo = serializers.PrimaryKeyRelatedField(queryset=TipoVehiculo.objects.all())
     espacio = serializers.PrimaryKeyRelatedField(queryset=Espacio.objects.all())
@@ -32,6 +34,13 @@ class RegistroVehiculoSerializer(serializers.ModelSerializer):
     class Meta:
         model = RegistroVehiculo
         fields = ['id', 'placa', 'tipo_vehiculo', 'hora_entrada', 'hora_salida', 'precio_cobrado', 'espacio']
+        extra_kwargs = {
+            'hora_entrada': {'required': False},
+        }
+
+    def create(self, validated_data):
+        validated_data['hora_entrada'] = timezone.now()
+        return super().create(validated_data)
 
     def update(self, instance, validated_data):
         tipo_vehiculo_data = validated_data.pop('tipo_vehiculo', None)

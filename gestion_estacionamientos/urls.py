@@ -10,13 +10,13 @@ urlpatterns = [
     path('lista-tipo-vehiculo/', ListaTipoVehiculoView.as_view(), name='lista_tipo_vehiculo'),
     path('agregar-tipo-vehiculo/', AgregarTipoVehiculoView.as_view(), name='agregar_tipo_vehiculo'),
     path('editar-tipo-vehiculo/', EditarTipoVehiculoView.as_view(), name='editar_tipo_vehiculo'),
-    path('eliminar-tipo-vehiculo/', EliminarTipoVehiculoView.as_view(), name='eliminar_tipo_vehiculo'),path('vehiculos/', ListarVehiculosView.as_view(), name='listar_vehiculos'),
+    path('eliminar-tipo-vehiculo/', EliminarTipoVehiculoView.as_view(), name='eliminar_tipo_vehiculo'),
     path('vehiculo/', RegistrarVehiculoView.as_view(), name='registrar_vehiculo'),
     path('vehiculo/<int:pk>/', VisualizarVehiculoView.as_view(), name='visualizar_vehiculo'),
     path('vehiculo/salida/', SalidaVehiculoView.as_view(), name='salida_vehiculo'),
+    path('vehiculos/', ListarVehiculosView.as_view(), name='listar_vehiculos'),
     path('incidentes/', ListarIncidentesView.as_view(), name='listar_incidentes'),
     path('incidentes/agregar/', AgregarIncidenteView.as_view(), name='agregar_incidente'),
-    
     
 ]
 

@@ -14,7 +14,6 @@ class RegistroAdminEstacionamientoView(APIView):
             admin = serializer.save()
             return Response(AdminEstacionamientoSerializer(admin).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
 
 class LoginAdminEstacionamientoView(APIView):
     def post(self, request):
@@ -134,11 +133,13 @@ class EliminarTipoVehiculoView(APIView):
         except TipoVehiculo.DoesNotExist:
             return Response({"error": "Tipo de Vehículo no encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import RegistroVehiculo, Espacio, TipoVehiculo
 from .serializers import RegistroVehiculoSerializer
+from django.utils import timezone
 
 class ListarVehiculosView(APIView):
     def get(self, request):
@@ -148,7 +149,11 @@ class ListarVehiculosView(APIView):
 
 class RegistrarVehiculoView(APIView):
     def post(self, request):
-        serializer = RegistroVehiculoSerializer(data=request.data)
+        data = request.data.copy()
+        data['hora_entrada'] = timezone.now()
+
+        serializer = RegistroVehiculoSerializer(data=data)
+
         if serializer.is_valid():
             espacio = serializer.validated_data['espacio']
             if not espacio.disponible:
@@ -159,16 +164,8 @@ class RegistrarVehiculoView(APIView):
 
             registro = serializer.save()
             return Response(RegistroVehiculoSerializer(registro).data, status=status.HTTP_201_CREATED)
+        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from .models import RegistroVehiculo, Espacio
-from .serializers import RegistroVehiculoSerializer
-from datetime import datetime
-
-from django.utils import timezone
 
 class SalidaVehiculoView(APIView):
     def post(self, request):
@@ -190,7 +187,6 @@ class SalidaVehiculoView(APIView):
         espacio.save()
 
         return Response(RegistroVehiculoSerializer(registro).data, status=status.HTTP_200_OK)
-
 
 class VisualizarVehiculoView(APIView):
     def get(self, request, pk):

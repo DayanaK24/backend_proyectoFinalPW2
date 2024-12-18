@@ -30,8 +30,7 @@ class Espacio(models.Model):
     disponible = models.BooleanField(default=True)
 
     def __str__(self):
-        estado = "Disponible" if self.disponible else "Ocupado"
-        return f"Espacio {self.id} ({estado})"
+        return f"Espacio {self.id} ({'Disponible' if self.disponible else 'Ocupado'})"
 
 class TipoVehiculo(models.Model):
     tipo = models.CharField(max_length=50)

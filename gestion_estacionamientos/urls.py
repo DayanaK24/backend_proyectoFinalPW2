@@ -17,6 +17,7 @@ urlpatterns = [
     path('incidentes/', ListarIncidentesView.as_view(), name='listar_incidentes'),
     path('incidentes/agregar/', AgregarIncidenteView.as_view(), name='agregar_incidente'),
     
+    
 ]
 
 

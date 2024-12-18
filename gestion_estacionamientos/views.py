@@ -8,20 +8,13 @@ from .serializers import AdminEstacionamientoSerializer, EstacionamientoSerializ
 class RegistroAdminEstacionamientoView(APIView):
     def post(self, request):
         serializer = AdminEstacionamientoSerializer(data=request.data)
+        if serializer.is_valid():
+            if AdminEstacionamiento.objects.filter(usuario=serializer.validated_data['usuario']).exists():
+                return Response({"error": "El usuario ya existe"}, status=status.HTTP_400_BAD_REQUEST)
+            admin = serializer.save()
+            return Response(AdminEstacionamientoSerializer(admin).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        usuario = serializer.validated_data['usuario']
-        if AdminEstacionamiento.objects.filter(usuario=usuario).exists():
-            
-            return Response(
-                {"error": "El usuario ya existe"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        admin = serializer.save()
-        data = AdminEstacionamientoSerializer(admin).data
-        return Response(data, status=status.HTTP_201_CREATED)
 
 class LoginAdminEstacionamientoView(APIView):
     def post(self, request):

@@ -67,6 +67,7 @@ El desarrollo se llevó a cabo utilizando herramientas y tecnologías modernas, 
 - [Frontend del Proyecto](https://github.com/DayanaK24/frontend_proyectoFinalPW2)
 - [Backend del Proyecto](https://github.com/DayanaK24/backend_proyectoFinalPW2)
 
+
 ---
 
 ## Conclusiones
@@ -85,7 +86,3 @@ El desarrollo se llevó a cabo utilizando herramientas y tecnologías modernas, 
 
 ---
 
-## Recursos Visuales
-Asegúrate de incluir capturas de pantalla relevantes, como:
-1. **Vista del Mapa Interactivo**
-2. **Panel de Administración**
